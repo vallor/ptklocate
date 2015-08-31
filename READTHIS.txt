@@ -1,5 +1,4 @@
-# ptklocate
-Graphical frontend to locate(1) using perl-tk.
+ptklocate - perl-tk interface to locate(1)
 Scott Doty, C<< <vallor at cultnix.org > >>
 
 This perl script uses perl-tk to provide a graphical interface to locate(1).

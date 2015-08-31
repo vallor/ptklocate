@@ -1,0 +1,6 @@
+You know the drill.
+
+$ perl Makefile.PL
+$ sudo make install
+
+rejoice.

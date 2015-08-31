@@ -1,0 +1,183 @@
+#!/usr/bin/perl
+
+=head1 NAME
+
+ptklocate - perl-tk interface to locate
+
+=head1 DESCRIPTION
+
+This perl script uses perl-tk to provide a graphical interface to locate(1).
+
+=head1 VERSION
+
+Version 0.90
+
+=head1 AUTHOR
+
+Scott Doty, C<< <vallor at cultnix.org > >>
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (c) 2015, Scott Doty <Scott.Doty at sonic.com>
+
+This program is free software; you can redistribute it and/or modify it
+under the terms of the BSD license.
+
+(To contact me regarding this script, you will do better to use the contact
+address under the "AUTHOR" heading above.)
+
+=cut
+
+use Tk;
+use Tk::ReindexedROText;
+
+our $stopit = 0; # are we stopping locate?
+our $searching = 0; # are we currently searching?
+our $caseins; # will be set to " -i " for case insensitive search
+
+# fiddly bits for setting a default font.  Commented out, maybe version 2.
+#our $dpi_default = 96;
+#our $dpi = get_dpi();
+#our $pitch = int(($dpi/10)+.5);
+
+my $title = 'ptklocate';
+my $fn_rc = '.' . $title . 'rc';
+my $fn_homerc = $ENV{HOME} . '/' . $fn_rc;
+
+$mw = new MainWindow();
+$mw->title($title);
+
+#$mw->optionAdd('*font' => "Courier $pitch", 42);
+
+# get xrdb options (font, colors, etc.)
+if( -e $fn_rc) {
+  $mw->optionReadfile($fn_rc, 41); # current directory
+  }
+
+if( -e $fn_homerc ) {
+  $mw->optionReadfile($fn_homerc, 40); # home directory
+  }
+
+$mw->Label(-text => 'Enter search term.')->pack;
+
+# our friendly search box
+$searchbox = $mw->Text(-height => 1
+  )->pack(qw/-fill both/);
+
+# buttons as used here need a frame
+$buttons = $mw->Frame();
+
+$check = $buttons->Checkbutton(
+          -text => 'Case insensitive',
+          -offvalue => '',
+          -onvalue => '-i',
+          -variable => \$caseins);
+$check->select;
+$check->pack(qw/-side right/);
+
+$go = $buttons->Button(
+  -text	=> 'Search',
+  -command => sub{ &do_search }
+  )->pack(qw/-side left/);
+
+$stop = $buttons->Button(
+  -text => 'Stop',
+  -command => sub { &do_stop }
+  )->pack(qw/-side left/);
+
+$clear = $buttons->Button(
+  -text => 'Clear',
+  -command => sub { &do_clear }
+  )->pack(qw/-side left/);
+
+$buttons->pack(qw/-side top/); # pack the frame
+
+# A scrolled read-only text field for our results
+$results = $mw->Scrolled('ROText',
+  -scrollbars => 'osoe',
+  -wrap => 'none'
+  )->pack(qw/-side bottom -expand yes -fill both/);
+
+MainLoop;
+
+exit(1); # shouldn't get here
+
+
+#######################
+# callback for search button
+sub do_search
+{
+$searching=1; # we are searching
+my $locate = $searchbox->Contents(); # what are any of us looking for?
+$locate =~ tr/\n\r\$\`\"\'//; # shell escape
+
+# this should be a checkbox in the interface
+open(L,"locate $caseins -- $locate|");
+
+FILENAME:
+while(<L>)
+  {
+  $results->Insert($_); # add found line to RO textbox
+  $results->update; # update the textbox
+  if(1 == $stopit)
+    {
+    # stop button semaphore
+    $stopit=0;
+    $searching=0;
+    close(L);
+    last FILENAME;
+    }
+  }
+$searching=0;
+0;
+}
+
+
+#######################
+# callback for stop button
+sub do_stop
+{
+$stopit=1;
+0;
+}
+
+
+#######################
+# callback for clear button
+sub do_clear
+{
+if(1 == $searching) { $stopit=1; }
+$results->Contents('');
+# but don't clear search term, that would be annoying
+0;
+}
+
+#######################
+#
+#sub do_check
+#{
+#(print STDERR $caseins);
+#0;
+#}
+
+
+#######################
+# function for determining default font
+#sub get_dpi
+#{
+#my $f;
+#my $result;
+#open($f,"xrdb -query") || return $dpi_default;
+#
+#while(<$f>)
+#  {
+#  chomp;
+#  next unless (/^Xft.dpi\:.+(\d+)$/);
+#  $result=$1;
+#  close($f);
+#  last;
+#  }
+#
+#if($result == 0) { return $dpi_default; }
+#$result;
+#}
